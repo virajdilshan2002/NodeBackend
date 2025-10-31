@@ -1,0 +1,32 @@
+{
+  "name": "expressjstest",
+  "version": "1.0.0",
+  "description": "test",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^2.2.0",
+    "csv": "^6.4.1",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.20.0",
+    "mongoose": "^8.19.1",
+    "mongoose-sequence": "^6.0.1",
+    "nodemailer": "^7.0.10",
+    "pdfkit": "^0.17.2",
+    "redis": "^5.8.3",
+    "socket.io": "^4.8.1"
+  }
+}
