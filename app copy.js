@@ -1,17 +1,17 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
-import router from "./scripts/testRoutes copy.js";
-import orgRouter from "./scripts/organizationRoutes.js";
+import DBConnection from "./db/mongodb.js";
 
 dotenv.config();
-const port = 3009;
+const port = process.env.PORT || 3000;
 const app = express();
 
-app.use("/reports-api/test", router);
-app.use("/organizations-api/test", orgRouter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+await DBConnection();
+
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
