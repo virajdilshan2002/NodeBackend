@@ -17,19 +17,19 @@ const connection1 = {
   database: "1_corporate_prod_copy",
 };
 
+const connection2 = {
+  host: "192.168.1.11",
+  user: "kangaroo",
+  password: "kan588",
+  database: "c_corporate_prod_test",
+};
+
 // const connection2 = {
-//   host: "192.168.1.11",
-//   user: "kangaroo",
-//   password: "kan588",
+//   host: "localhost",
+//   user: "root",
+//   password: "Viraj@2002",
 //   database: "1_corporate_test_copy",
 // };
-
-const connection2 = {
-  host: "localhost",
-  user: "root",
-  password: "Viraj@2002",
-  database: "1_corporate_test_copy",
-};
 
 // to update org id in booking by code name
 // UPDATE booking b
@@ -732,7 +732,7 @@ router.get("/update-booking-org", function (req, res, next) {
   const missingOrganizationsNames = [];
   let error = [];
   let finished = false;
-  const batchSize = 10000;
+  const batchSize = 100000;
 
   function finish() {
     if (finished) return;
@@ -761,11 +761,19 @@ router.get("/update-booking-org", function (req, res, next) {
       function processBatch(lastId) {
 
         // Update only bookings that have end_time >= 2026-03-01
+        // const bookingSql = `
+        //   SELECT id, organization, ref_id
+        //   FROM booking b
+        //   WHERE id > ?
+        //   AND b.end_time >= '2026-03-01 00:00:00'
+        //   ORDER BY id ASC
+        //   LIMIT ?
+        // `;
+
         const bookingSql = `
           SELECT id, organization, ref_id
           FROM booking b
           WHERE id > ?
-          AND b.end_time >= '2026-03-01 00:00:00'
           ORDER BY id ASC
           LIMIT ?
         `;
@@ -1989,6 +1997,29 @@ router.get("/invoices", function (req, res, next) {
           } else {
             res.json({ Data: "Error3" });
           }
+        }
+      });
+    }
+  });
+});
+
+router.get("/invoices-organization", function (req, res, next) {
+  const connectionMain = mysql.createConnection(connection2);
+  let error = [];
+  // const moment = require("moment");
+
+  connectionMain.connect(function (err) {
+    if (err) {
+      connectionMain.end();
+      res.json({ Data: "Error1" });
+    } else {
+      connectionMain.query("UPDATE invoices i LEFT JOIN organization o ON i.customer_code = o.customer_code SET i.organization_id = o.id", function (err, result) {
+        if (err) {
+          res.json({ Data: err });
+          connectionMain.end();
+        } else {
+          res.json({ Data: "Completed" });
+          connectionMain.end();
         }
       });
     }
