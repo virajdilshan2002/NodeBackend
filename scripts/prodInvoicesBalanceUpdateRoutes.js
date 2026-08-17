@@ -7,15 +7,22 @@ const router = express.Router();
 //   host: "192.168.1.11",
 //   user: "kangaroo",
 //   password: "kan588",
-//   database: "corporate_master",
+//   database: "1_corporate_master_prod",
 // };
 
-const productDB = {
-  host: "192.168.1.10",
-  user: "usr_local",
-  password: "lobos681",
-  database: "corporate_master",
+const testDb = {
+  host: "localhost",
+  user: "admin",
+  password: "viraj@2588",
+  database: "c_corporate_prod_test",
 };
+
+// const productDB = {
+//   host: "192.168.1.10",
+//   user: "usr_local",
+//   password: "lobos681",
+//   database: "corporate_master",
+// };
 
 // const localDb = {
 //   host: "localhost",
@@ -26,7 +33,7 @@ const productDB = {
 
 router.get("/update-payments-and-deductions-for-departments",
   function (req, res) {
-    const connection = mysql.createConnection(productDB);
+    const connection = mysql.createConnection(testDb);
 
     connection.connect(function (err) {
       if (err) {
@@ -57,16 +64,16 @@ router.get("/update-payments-and-deductions-for-departments",
             GROUP BY department_id
           `;
 
-          // const departments = await query(connection, departmentsQuery);
-          const departments = [500572];
+          const departments = await query(connection, departmentsQuery);
+          // const departments = [641901];
 
-          const vehiclecategories = ["C"];
+          const vehiclecategories = ['V','K','B','C'];
 
           let totalUpdated = 0;
           
           for (const departmentRow of departments) {
-            // const department = departmentRow.department_id;
-            const department = departmentRow
+            const department = departmentRow.department_id;
+            // const department = departmentRow
             
             // if (department !== 29999) {
             //   continue;
@@ -93,6 +100,13 @@ router.get("/update-payments-and-deductions-for-departments",
               ]);
 
               for (const invoice of invoices) {
+
+                const skipInvoiceList = [2927381]
+                if (skipInvoiceList.includes(invoice.id)) {
+                  bringForward = invoice.balance_as_at_end_date
+                  continue; // Skip manually corrected payments
+                }
+
                 invoice.balance_as_at_start_date = bringForward;
                 const paymentsQuery = `
                   SELECT COALESCE(
@@ -107,8 +121,10 @@ router.get("/update-payments-and-deductions-for-departments",
                   INNER JOIN payments p
                     ON p.id = r.payment_id
                   WHERE r.organization_id = ?
+                    AND p.is_cancelled = 0
                     AND p.date BETWEEN ? AND ?
                     AND inv.number LIKE ?
+                    AND inv.is_cancelled = 0
                     AND inv.department_id = ?
                 `;
 
@@ -123,6 +139,7 @@ router.get("/update-payments-and-deductions-for-departments",
                   WHERE bd.customer_code = ?
                     AND bd.write_off_date BETWEEN ? AND ?
                     AND inv.number LIKE ?
+                    AND inv.is_cancelled = 0
                     AND inv.department_id = ?
                 `;
 
@@ -135,20 +152,21 @@ router.get("/update-payments-and-deductions-for-departments",
                     department,
                   ]),
 
-                  query(connection, deductionsQuery, [
-                    invoice.customer_code,
-                    invoice.start_date,
-                    invoice.end_date,
-                    `${category}%`,
-                    department,
-                  ]),
+                  // query(connection, deductionsQuery, [
+                  //   invoice.customer_code,
+                  //   invoice.start_date,
+                  //   invoice.end_date,
+                  //   `${category}%`,
+                  //   department,
+                  // ]),
                 ]);
 
                 let payments = Number(paymentRows[0]?.total || 0);
-                let deductions = Number(deductionRows[0]?.total || 0);
+                // let deductions = Number(deductionRows[0]?.total || 0);
 
                 payments = Math.round(payments * 100) / 100;
-                deductions = Math.round(deductions * 100) / 100;
+                // deductions = Math.round(deductions * 100) / 100;
+                let deductions = 0;
                 
                 // payments = 100
                 // deductions = 20
@@ -159,18 +177,18 @@ router.get("/update-payments-and-deductions-for-departments",
                   `Invoice ${invoice.number}: startBalance = ${invoice.balance_as_at_start_date}, endBalance = ${endBalance}, Payments = ${payments}, Deductions = ${deductions}`
                 );
 
-                // await query(
-                //   connection,
-                //   `
-                //     UPDATE invoices
-                //     SET payments = ?,
-                //         deductions = ?,
-                //         balance_as_at_start_date = ?,
-                //         balance_as_at_end_date = ?
-                //     WHERE id = ?
-                //   `,
-                //   [payments, deductions, bringForward, endBalance, invoice.id]
-                // );
+                await query(
+                  connection,
+                  `
+                    UPDATE invoices
+                    SET payments = ?,
+                        deductions = ?,
+                        balance_as_at_start_date = ?,
+                        balance_as_at_end_date = ?
+                    WHERE id = ?
+                  `,
+                  [payments, deductions, bringForward, endBalance, invoice.id]
+                );
 
                 bringForward = endBalance;
 
@@ -179,11 +197,11 @@ router.get("/update-payments-and-deductions-for-departments",
             }
           }
 
-          connection.end();
-          return res.json({
-            success: 'trueeeeeeeeee',
-            updated: totalUpdated,
-          });
+          // connection.end();
+          // return res.json({
+          //   success: 'trueeeeeeeeee',
+          //   updated: totalUpdated,
+          // });
 
           connection.commit(function (err) {
             if (err) {
@@ -246,20 +264,22 @@ router.get("/update-payments-and-deductions-for-organizations",
             SELECT organization_id
             FROM invoices
             WHERE is_cancelled = 0
-              AND invoicing_method LIKE '%Organization%'
+              AND invoicing_method = 'Organization'
               AND number NOT LIKE '%Blank%'
               AND department_id IS NULL
             GROUP BY organization_id
           `;
 
           const organizations = await query(connection, organizationsQuery);
+          // const organizations = [497267];
 
-          const vehiclecategories = ["B", "C"];
+          const vehiclecategories = ['V','K','B','C'];
 
           let totalUpdated = 0;
           
           for (const organizationRow of organizations) {
             const organization = organizationRow.organization_id;
+            // const organization = organizationRow;
             
             for (const category of vehiclecategories) {
               console.log(`================================================================== Updating organization ${category} : `, organization);
@@ -273,7 +293,7 @@ router.get("/update-payments-and-deductions-for-organizations",
                   AND organization_id = ?
                   AND number LIKE ?
                   AND number NOT LIKE '%Blank%'
-                  AND invoicing_method LIKE '%Organization%'
+                  AND invoicing_method = 'Organization'
                 ORDER BY created_date ASC, id ASC
               `;
 
@@ -297,8 +317,10 @@ router.get("/update-payments-and-deductions-for-organizations",
                   INNER JOIN payments p
                     ON p.id = r.payment_id
                   WHERE r.organization_id = ?
+                    AND p.is_cancelled = 0
                     AND p.date BETWEEN ? AND ?
                     AND inv.number LIKE ?
+                    AND inv.is_cancelled = 0
                     AND inv.department_id IS NULL
                 `;
 
@@ -313,6 +335,7 @@ router.get("/update-payments-and-deductions-for-organizations",
                   WHERE bd.customer_code = ?
                     AND bd.write_off_date BETWEEN ? AND ?
                     AND inv.number LIKE ?
+                    AND inv.is_cancelled = 0
                     AND inv.department_id IS NULL
                 `;
 
@@ -321,16 +344,14 @@ router.get("/update-payments-and-deductions-for-organizations",
                     invoice.organization_id,
                     invoice.start_date,
                     invoice.end_date,
-                    `${category}%`,
-                    organization,
+                    `${category}%`
                   ]),
 
                   query(connection, deductionsQuery, [
                     invoice.customer_code,
                     invoice.start_date,
                     invoice.end_date,
-                    `${category}%`,
-                    organization,
+                    `${category}%`
                   ]),
                 ]);
 
@@ -340,8 +361,6 @@ router.get("/update-payments-and-deductions-for-organizations",
                 payments = Math.round(payments * 100) / 100;
                 deductions = Math.round(deductions * 100) / 100;
                 
-                // payments = 100
-                // deductions = 50
                 endBalance = invoice.balance_as_at_start_date + invoice.net_amount - payments - deductions;
                 endBalance = Math.round(endBalance * 100) / 100;
 
@@ -368,6 +387,12 @@ router.get("/update-payments-and-deductions-for-organizations",
               }
             }
           }
+
+          // connection.end();
+          // return res.json({
+          //   success: 'trueeeeeeeeee',
+          //   updated: totalUpdated,
+          // });
 
           connection.commit(function (err) {
             if (err) {
