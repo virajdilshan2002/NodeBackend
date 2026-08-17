@@ -17,19 +17,19 @@ const connection1 = {
   database: "1_corporate_prod_copy",
 };
 
-const connection2 = {
-  host: "192.168.1.11",
-  user: "kangaroo",
-  password: "kan588",
-  database: "c_corporate_prod_test",
-};
-
 // const connection2 = {
-//   host: "localhost",
-//   user: "root",
-//   password: "Viraj@2002",
-//   database: "1_corporate_test_copy",
+//   host: "192.168.1.11",
+//   user: "kangaroo",
+//   password: "kan588",
+//   database: "c_corporate_prod_test",
 // };
+
+const connection2 = {
+  host: "localhost",
+  user: "root",
+  password: "Viraj@2002",
+  database: "1_corporate_test_copy",
+};
 
 // to update org id in booking by code name
 // UPDATE booking b
@@ -558,93 +558,93 @@ const safeDate = (d) => {
   return isNaN(date) ? null : date;
 };
 
-// router.get("/update-booking-org", async (req, res) => {
-//   const connection = mysql.createConnection(connection2);
+router.get("/update-booking-org", async (req, res) => {
+  const connection = mysql.createConnection(connection2);
 
-//   connection.connect(async (err) => {
-//     if (err) return res.json({ error: err });
+  connection.connect(async (err) => {
+    if (err) return res.json({ error: err });
 
-//     const sql = `
-//       UPDATE booking b
-//       JOIN organization o
-//         ON LOWER(TRIM(o.name)) = LOWER(TRIM(b.code_organization))
-//       SET b.organization_id = o.id
-//       WHERE b.organization_id IS NULL
-//     `;
+    const sql = `
+      UPDATE booking b
+      JOIN organization o
+        ON LOWER(TRIM(o.name)) = LOWER(TRIM(b.code_organization))
+      SET b.organization_id = o.id
+      WHERE b.organization_id IS NULL
+    `;
 
-//     connection.query(sql, (err, result) => {
-//       connection.end();
+    connection.query(sql, (err, result) => {
+      connection.end();
 
-//       if (err) {
-//         console.error(err);
-//         return res.json({ error: err });
-//       }
+      if (err) {
+        console.error(err);
+        return res.json({ error: err });
+      }
 
-//       res.json({
-//         message: "Updated successfully",
-//         affectedRows: result.affectedRows,
-//       });
-//     });
-//   });
-// });
+      res.json({
+        message: "Updated successfully",
+        affectedRows: result.affectedRows,
+      });
+    });
+  });
+});
 
-// router.get("/update-booking-org-by-customer-code", function (req, res, next) {
-//   const connectionMain = mysql.createConnection(connection2);
+router.get("/update-booking-org-by-customer-code", function (req, res, next) {
+  const connectionMain = mysql.createConnection(connection2);
 
-//   let error = [];
+  let error = [];
 
-//     connectionMain.query("SELECT * FROM booking", function (err, result) {
-//       connectionMain.end();
+    connectionMain.query("SELECT * FROM booking", function (err, result) {
+      connectionMain.end();
 
-//       if (err) {
-//         console.log(err);
-//         return res.json({ Data: "Error2" });
-//       }
+      if (err) {
+        console.log(err);
+        return res.json({ Data: "Error2" });
+      }
 
-//       if (result && result.length) {
-//         const json = JSON.parse(JSON.stringify(result));
+      if (result && result.length) {
+        const json = JSON.parse(JSON.stringify(result));
 
-//         connectionMain.connect(function (err2) {
-//           if (err2) {
-//             connectionMain.end();
-//             return res.json({ Data: "Connection Error" });
-//           }
+        connectionMain.connect(function (err2) {
+          if (err2) {
+            connectionMain.end();
+            return res.json({ Data: "Connection Error" });
+          }
 
-//           async.forEach(
-//             json,
-//             function (row, next) {
-//               const sql = `
-//                   UPDATE booking b
-//                   JOIN organization o
-//                     ON LOWER(TRIM(o.name)) = LOWER(TRIM(?))
-//                   SET b.organization_id = o.id
-//                   WHERE b.id = ?
-//                 `;
+          async.forEach(
+            json,
+            function (row, next) {
+              const sql = `
+                  UPDATE booking b
+                  JOIN organization o
+                    ON LOWER(TRIM(o.name)) = LOWER(TRIM(?))
+                  SET b.organization_id = o.id
+                  WHERE b.id = ?
+                `;
 
-//               const values = [row.code_organization, row.id];
+              const values = [row.code_organization, row.id];
 
-//               connectionMain.query(sql, values, function (err, result) {
-//                 if (err) {
-//                   console.error("Error updating row:", err);
-//                   error.push({ id: row.id, error: err });
-//                 }
-//                 next();
-//               });
-//             },
-//             function allDone() {
-//               connectionMain.end();
-//               return res.json({
-//                 Message: "Booking organization_id update completed",
-//                 Error: error,
-//               });
-//             },
-//           );
-//         });
-//       } else {
-//         return res.json({ Data: [] });
-//       }
-//     });
-//   });
+              connectionMain.query(sql, values, function (err, result) {
+                if (err) {
+                  console.error("Error updating row:", err);
+                  error.push({ id: row.id, error: err });
+                }
+                next();
+              });
+            },
+            function allDone() {
+              connectionMain.end();
+              return res.json({
+                Message: "Booking organization_id update completed",
+                Error: error,
+              });
+            },
+          );
+        });
+      } else {
+        return res.json({ Data: [] });
+      }
+    });
+  });
 
 router.get("/missing-organizations", function (req, res, next) {
   const connectionMain = mysql.createConnection(connection1);
@@ -725,154 +725,146 @@ router.get("/missing-organizations", function (req, res, next) {
   });
 });
 
-router.get("/update-booking-org", function (req, res, next) {
-  const connectionMain = mysql.createConnection(connection1);
-  const connectionSecond = mysql.createConnection(connection2);
+// router.get("/update-booking-org", function (req, res, next) {
+//   const connectionMain = mysql.createConnection(connection1);
+//   const connectionSecond = mysql.createConnection(connection2);
 
-  const missingOrganizationsNames = [];
-  let error = [];
-  let finished = false;
-  const batchSize = 100000;
+//   const missingOrganizationsNames = [];
+//   let error = [];
+//   let finished = false;
+//   const batchSize = 10000;
 
-  function finish() {
-    if (finished) return;
-    finished = true;
+//   function finish() {
+//     if (finished) return;
+//     finished = true;
 
-    connectionSecond.end();
-    return res.json({
-      Message: "Booking organization_id update completed",
-      MissingOrganizations: missingOrganizationsNames,
-    });
-  }
+//     connectionSecond.end();
+//     return res.json({
+//       Message: "Booking organization_id update completed",
+//       MissingOrganizations: missingOrganizationsNames,
+//     });
+//   }
 
-  connectionMain.connect(function (err) {
-    if (err) {
-      connectionMain.end();
-      return res.json({ Data: "Error1" });
-    }
+//   connectionMain.connect(function (err) {
+//     if (err) {
+//       connectionMain.end();
+//       return res.json({ Data: "Error1" });
+//     }
 
-    connectionSecond.connect(function (err2) {
-      if (err2) {
-        connectionSecond.end();
-        connectionMain.end();
-        return res.json({ Data: "Connection Error" });
-      }
+//     connectionSecond.connect(function (err2) {
+//       if (err2) {
+//         connectionSecond.end();
+//         connectionMain.end();
+//         return res.json({ Data: "Connection Error" });
+//       }
 
-      function processBatch(lastId) {
+//       function processBatch(lastId) {
 
-        // Update only bookings that have end_time >= 2026-03-01
-        // const bookingSql = `
-        //   SELECT id, organization, ref_id
-        //   FROM booking b
-        //   WHERE id > ?
-        //   AND b.end_time >= '2026-03-01 00:00:00'
-        //   ORDER BY id ASC
-        //   LIMIT ?
-        // `;
+//         // Update only bookings that have end_time >= 2026-03-01
+//         const bookingSql = `
+//           SELECT id, organization, ref_id
+//           FROM booking b
+//           WHERE id > ?
+//           AND b.end_time >= '2026-03-01 00:00:00'
+//           ORDER BY id ASC
+//           LIMIT ?
+//         `;
 
-        const bookingSql = `
-          SELECT id, organization, ref_id
-          FROM booking b
-          WHERE id > ?
-          ORDER BY id ASC
-          LIMIT ?
-        `;
+//         connectionMain.query(
+//           bookingSql,
+//           [lastId, batchSize],
+//           function (err, rows) {
+//             if (err) {
+//               console.log(err);
+//               connectionMain.end();
+//               connectionSecond.end();
+//               return res.json({ Data: "Error2" });
+//             }
 
-        connectionMain.query(
-          bookingSql,
-          [lastId, batchSize],
-          function (err, rows) {
-            if (err) {
-              console.log(err);
-              connectionMain.end();
-              connectionSecond.end();
-              return res.json({ Data: "Error2" });
-            }
+//             if (!rows || !rows.length) {
+//               connectionMain.end();
+//               return finish();
+//             }
 
-            if (!rows || !rows.length) {
-              connectionMain.end();
-              return finish();
-            }
+//             let pending = rows.length;
+//             let nextLastId = lastId;
 
-            let pending = rows.length;
-            let nextLastId = lastId;
+//             rows.forEach(function (row) {
+//               nextLastId = row.id;
 
-            rows.forEach(function (row) {
-              nextLastId = row.id;
+//               const findOrgSql = `
+//               SELECT o.id AS org_id, o.name AS org_name FROM organization o
+//               WHERE LOWER(TRIM(o.name)) = LOWER(TRIM(?))
+//             `;
 
-              const findOrgSql = `
-              SELECT o.id AS org_id, o.name AS org_name FROM organization o
-              WHERE LOWER(TRIM(o.name)) = LOWER(TRIM(?))
-            `;
+//               connectionSecond.query(
+//                 findOrgSql,
+//                 [row.organization],
+//                 function (orgErr, orgResult) {
+//                   if (orgErr) {
+//                     console.error("Error finding organization:", orgErr);
+//                     if (!missingOrganizationsNames.includes(row.organization)) {
+//                       missingOrganizationsNames.push(row.organization);
+//                     }
+//                     pending -= 1;
+//                     if (pending === 0) processBatch(nextLastId);
+//                     return;
+//                   }
 
-              connectionSecond.query(
-                findOrgSql,
-                [row.organization],
-                function (orgErr, orgResult) {
-                  if (orgErr) {
-                    console.error("Error finding organization:", orgErr);
-                    if (!missingOrganizationsNames.includes(row.organization)) {
-                      missingOrganizationsNames.push(row.organization);
-                    }
-                    pending -= 1;
-                    if (pending === 0) processBatch(nextLastId);
-                    return;
-                  }
+//                   if (!orgResult || !orgResult.length) {
+//                     console.error(
+//                       "Organization not found for ref id:",
+//                       row.ref_id,
+//                     );
+//                     if (!missingOrganizationsNames.includes(row.organization)) {
+//                       missingOrganizationsNames.push(row.organization);
+//                     }
+//                     error.push({
+//                       id: row.id,
+//                       error: "Organization not found",
+//                     });
+//                     pending -= 1;
+//                     if (pending === 0) processBatch(nextLastId);
+//                     return;
+//                   }
 
-                  if (!orgResult || !orgResult.length) {
-                    console.error(
-                      "Organization not found for ref id:",
-                      row.ref_id,
-                    );
-                    if (!missingOrganizationsNames.includes(row.organization)) {
-                      missingOrganizationsNames.push(row.organization);
-                    }
-                    error.push({
-                      id: row.id,
-                      error: "Organization not found",
-                    });
-                    pending -= 1;
-                    if (pending === 0) processBatch(nextLastId);
-                    return;
-                  }
+//                   const org_id = orgResult[0].org_id;
+//                   const org_name = orgResult[0].org_name;
+//                   console.log(
+//                     `Updating booking ${row.id} with organization_id ${org_id}`,
+//                   );
 
-                  const org_id = orgResult[0].org_id;
-                  const org_name = orgResult[0].org_name;
-                  console.log(
-                    `Updating booking ${row.id} with organization_id ${org_id}`,
-                  );
+//                   const sql = `
+//                   UPDATE booking b
+//                   SET b.organization_id = ?
+//                   , b.code_organization = ?
+//                   WHERE b.id = ?
+//                 `;
 
-                  const sql = `
-                  UPDATE booking b
-                  SET b.organization_id = ?
-                  , b.code_organization = ?
-                  WHERE b.id = ?
-                `;
+//                   connectionSecond.query(
+//                     sql,
+//                     [org_id, org_name, row.id],
+//                     function (updateErr) {
+//                       if (updateErr) {
+//                         console.error("Error updating row:", updateErr);
+//                         error.push({ id: row.id, error: updateErr });
+//                       }
 
-                  connectionSecond.query(
-                    sql,
-                    [org_id, org_name, row.id],
-                    function (updateErr) {
-                      if (updateErr) {
-                        console.error("Error updating row:", updateErr);
-                        error.push({ id: row.id, error: updateErr });
-                      }
+//                       pending -= 1;
+//                       if (pending === 0) processBatch(nextLastId);
+//                     },
+//                   );
+//                 },
+//               );
+//             });
+//           },
+//         );
+//       }
 
-                      pending -= 1;
-                      if (pending === 0) processBatch(nextLastId);
-                    },
-                  );
-                },
-              );
-            });
-          },
-        );
-      }
-
-      processBatch(0);
-    });
-  });
-});
+//       processBatch(0);
+//     });
+//   });
+// });
 
 router.get("/booking", function (req, res, next) {
   const connectionMain = mysql.createConnection(connection1);

@@ -1,0 +1,418 @@
+import express from "express";
+import mysql from "mysql";
+
+const router = express.Router();
+
+// const testDb = {
+//   host: "192.168.1.11",
+//   user: "kangaroo",
+//   password: "kan588",
+//   database: "corporate_master",
+// };
+
+const productDB = {
+  host: "192.168.1.10",
+  user: "usr_local",
+  password: "lobos681",
+  database: "corporate_master",
+};
+
+// const localDb = {
+//   host: "localhost",
+//   user: "admin",
+//   password: "viraj@2588",
+//   database: "corporate_master",
+// };
+
+router.get("/update-payments-and-deductions-for-departments",
+  function (req, res) {
+    const connection = mysql.createConnection(productDB);
+
+    connection.connect(function (err) {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          error: err.message,
+        });
+      }
+
+      connection.beginTransaction(async function (err) {
+        if (err) {
+          connection.end();
+
+          return res.status(500).json({
+            success: false,
+            error: err.message,
+          });
+        }
+
+        try {
+          const departmentsQuery = `
+            SELECT department_id
+            FROM invoices
+            WHERE is_cancelled = 0
+              AND invoicing_method LIKE '%Department%'
+              AND number NOT LIKE '%Blank%'
+              AND department_id IS NOT NULL
+            GROUP BY department_id
+          `;
+
+          // const departments = await query(connection, departmentsQuery);
+          const departments = [500572];
+
+          const vehiclecategories = ["C"];
+
+          let totalUpdated = 0;
+          
+          for (const departmentRow of departments) {
+            // const department = departmentRow.department_id;
+            const department = departmentRow
+            
+            // if (department !== 29999) {
+            //   continue;
+            // }
+              
+            for (const category of vehiclecategories) {
+              console.log(`================================================================== Updating department ${category} : `, department);
+              let endBalance = 0;
+              let bringForward = 0;
+              const invoicesQuery = `
+                SELECT *
+                FROM invoices
+                WHERE is_cancelled = 0
+                  AND department_id = ?
+                  AND number LIKE ?
+                  AND number NOT LIKE '%Blank%'
+                  AND invoicing_method LIKE '%Department%'
+                ORDER BY created_date ASC, id ASC
+              `;
+
+              const invoices = await query(connection, invoicesQuery, [
+                department,
+                `${category}%`,
+              ]);
+
+              for (const invoice of invoices) {
+                invoice.balance_as_at_start_date = bringForward;
+                const paymentsQuery = `
+                  SELECT COALESCE(
+                    SUM(ri.paid + ri.certificate_paid),
+                    0
+                  ) AS total
+                  FROM receipt_invoices ri
+                  INNER JOIN invoices inv
+                    ON inv.id = ri.invoice_id
+                  INNER JOIN receipts r
+                    ON r.id = ri.receipt_id
+                  INNER JOIN payments p
+                    ON p.id = r.payment_id
+                  WHERE r.organization_id = ?
+                    AND p.date BETWEEN ? AND ?
+                    AND inv.number LIKE ?
+                    AND inv.department_id = ?
+                `;
+
+                const deductionsQuery = `
+                  SELECT COALESCE(
+                    SUM(bd.write_off_value),
+                    0
+                  ) AS total
+                  FROM bad_debts bd
+                  INNER JOIN invoices inv
+                    ON inv.id = bd.invoice_id
+                  WHERE bd.customer_code = ?
+                    AND bd.write_off_date BETWEEN ? AND ?
+                    AND inv.number LIKE ?
+                    AND inv.department_id = ?
+                `;
+
+                const [paymentRows, deductionRows] = await Promise.all([
+                  query(connection, paymentsQuery, [
+                    invoice.organization_id,
+                    invoice.start_date,
+                    invoice.end_date,
+                    `${category}%`,
+                    department,
+                  ]),
+
+                  query(connection, deductionsQuery, [
+                    invoice.customer_code,
+                    invoice.start_date,
+                    invoice.end_date,
+                    `${category}%`,
+                    department,
+                  ]),
+                ]);
+
+                let payments = Number(paymentRows[0]?.total || 0);
+                let deductions = Number(deductionRows[0]?.total || 0);
+
+                payments = Math.round(payments * 100) / 100;
+                deductions = Math.round(deductions * 100) / 100;
+                
+                // payments = 100
+                // deductions = 20
+                endBalance = invoice.balance_as_at_start_date + invoice.net_amount - payments - deductions;
+                endBalance = Math.round(endBalance * 100) / 100;
+
+                console.log(
+                  `Invoice ${invoice.number}: startBalance = ${invoice.balance_as_at_start_date}, endBalance = ${endBalance}, Payments = ${payments}, Deductions = ${deductions}`
+                );
+
+                // await query(
+                //   connection,
+                //   `
+                //     UPDATE invoices
+                //     SET payments = ?,
+                //         deductions = ?,
+                //         balance_as_at_start_date = ?,
+                //         balance_as_at_end_date = ?
+                //     WHERE id = ?
+                //   `,
+                //   [payments, deductions, bringForward, endBalance, invoice.id]
+                // );
+
+                bringForward = endBalance;
+
+                totalUpdated++;
+              }
+            }
+          }
+
+          connection.end();
+          return res.json({
+            success: 'trueeeeeeeeee',
+            updated: totalUpdated,
+          });
+
+          connection.commit(function (err) {
+            if (err) {
+              return connection.rollback(function () {
+                connection.end();
+
+                res.status(500).json({
+                  success: false,
+                  error: err.message,
+                });
+              });
+            }
+
+            connection.end();
+
+            return res.json({
+              success: true,
+              updated: totalUpdated,
+            });
+          });
+        } catch (err) {
+          connection.rollback(function () {
+            connection.end();
+
+            res.status(500).json({
+              success: false,
+              error: err.message,
+            });
+          });
+        }
+      });
+    });
+  }
+);
+
+router.get("/update-payments-and-deductions-for-organizations",
+  function (req, res) {
+    const connection = mysql.createConnection(testDb);
+
+    connection.connect(function (err) {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          error: err.message,
+        });
+      }
+
+      connection.beginTransaction(async function (err) {
+        if (err) {
+          connection.end();
+
+          return res.status(500).json({
+            success: false,
+            error: err.message,
+          });
+        }
+
+        try {
+          const organizationsQuery = `
+            SELECT organization_id
+            FROM invoices
+            WHERE is_cancelled = 0
+              AND invoicing_method LIKE '%Organization%'
+              AND number NOT LIKE '%Blank%'
+              AND department_id IS NULL
+            GROUP BY organization_id
+          `;
+
+          const organizations = await query(connection, organizationsQuery);
+
+          const vehiclecategories = ["B", "C"];
+
+          let totalUpdated = 0;
+          
+          for (const organizationRow of organizations) {
+            const organization = organizationRow.organization_id;
+            
+            for (const category of vehiclecategories) {
+              console.log(`================================================================== Updating organization ${category} : `, organization);
+              
+              let endBalance = 0;
+              let bringForward = 0;
+              const invoicesQuery = `
+                SELECT *
+                FROM invoices
+                WHERE is_cancelled = 0
+                  AND organization_id = ?
+                  AND number LIKE ?
+                  AND number NOT LIKE '%Blank%'
+                  AND invoicing_method LIKE '%Organization%'
+                ORDER BY created_date ASC, id ASC
+              `;
+
+              const invoices = await query(connection, invoicesQuery, [
+                organization,
+                `${category}%`,
+              ]);
+
+              for (const invoice of invoices) {
+                invoice.balance_as_at_start_date = bringForward;
+                const paymentsQuery = `
+                  SELECT COALESCE(
+                    SUM(ri.paid + ri.certificate_paid),
+                    0
+                  ) AS total
+                  FROM receipt_invoices ri
+                  INNER JOIN invoices inv
+                    ON inv.id = ri.invoice_id
+                  INNER JOIN receipts r
+                    ON r.id = ri.receipt_id
+                  INNER JOIN payments p
+                    ON p.id = r.payment_id
+                  WHERE r.organization_id = ?
+                    AND p.date BETWEEN ? AND ?
+                    AND inv.number LIKE ?
+                    AND inv.department_id IS NULL
+                `;
+
+                const deductionsQuery = `
+                  SELECT COALESCE(
+                    SUM(bd.write_off_value),
+                    0
+                  ) AS total
+                  FROM bad_debts bd
+                  INNER JOIN invoices inv
+                    ON inv.id = bd.invoice_id
+                  WHERE bd.customer_code = ?
+                    AND bd.write_off_date BETWEEN ? AND ?
+                    AND inv.number LIKE ?
+                    AND inv.department_id IS NULL
+                `;
+
+                const [paymentRows, deductionRows] = await Promise.all([
+                  query(connection, paymentsQuery, [
+                    invoice.organization_id,
+                    invoice.start_date,
+                    invoice.end_date,
+                    `${category}%`,
+                    organization,
+                  ]),
+
+                  query(connection, deductionsQuery, [
+                    invoice.customer_code,
+                    invoice.start_date,
+                    invoice.end_date,
+                    `${category}%`,
+                    organization,
+                  ]),
+                ]);
+
+                let payments = Number(paymentRows[0]?.total || 0);
+                let deductions = Number(deductionRows[0]?.total || 0);
+
+                payments = Math.round(payments * 100) / 100;
+                deductions = Math.round(deductions * 100) / 100;
+                
+                // payments = 100
+                // deductions = 50
+                endBalance = invoice.balance_as_at_start_date + invoice.net_amount - payments - deductions;
+                endBalance = Math.round(endBalance * 100) / 100;
+
+                console.log(
+                  `Invoice ${invoice.number}: start = ${invoice.balance_as_at_start_date}, end = ${endBalance}, Payments = ${payments}, Deductions = ${deductions}`
+                );
+
+                await query(
+                  connection,
+                  `
+                    UPDATE invoices
+                    SET payments = ?,
+                        deductions = ?,
+                        balance_as_at_start_date = ?,
+                        balance_as_at_end_date = ?
+                    WHERE id = ?
+                  `,
+                  [payments, deductions, bringForward, endBalance, invoice.id]
+                );
+
+                bringForward = endBalance;
+
+                totalUpdated++;
+              }
+            }
+          }
+
+          connection.commit(function (err) {
+            if (err) {
+              return connection.rollback(function () {
+                connection.end();
+
+                res.status(500).json({
+                  success: false,
+                  error: err.message,
+                });
+              });
+            }
+
+            connection.end();
+
+            return res.json({
+              success: true,
+              updated: totalUpdated,
+            });
+          });
+        } catch (err) {
+          connection.rollback(function () {
+            connection.end();
+
+            res.status(500).json({
+              success: false,
+              error: err.message,
+            });
+          });
+        }
+      });
+    });
+  }
+);
+
+function query(connection, sql, params = []) {
+  return new Promise((resolve, reject) => {
+    connection.query(sql, params, (err, results) => {
+      if (err) {
+        return reject(err);
+      }
+
+      resolve(results);
+    });
+  });
+}
+
+export default router;
