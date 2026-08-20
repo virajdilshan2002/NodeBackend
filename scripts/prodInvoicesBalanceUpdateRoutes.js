@@ -1,21 +1,22 @@
 import express from "express";
 import mysql from "mysql";
+import moment from "moment";
 
 const router = express.Router();
 
-// const testDb = {
-//   host: "192.168.1.11",
-//   user: "kangaroo",
-//   password: "kan588",
-//   database: "1_corporate_master_prod",
-// };
-
 const testDb = {
-  host: "localhost",
-  user: "admin",
-  password: "viraj@2588",
-  database: "c_corporate_prod_test",
+  host: "192.168.1.11",
+  user: "kangaroo",
+  password: "kan588",
+  database: "1_corporate_master_prod",
 };
+
+// const testDb = {
+//   host: "localhost",
+//   user: "admin",
+//   password: "viraj@2588",
+//   database: "c_corporate_prod_test",
+// };
 
 // const productDB = {
 //   host: "192.168.1.10",
@@ -56,7 +57,7 @@ router.get("/update-payments-and-deductions-for-departments",
         try {
           const departmentsQuery = `
             SELECT department_id
-            FROM invoices
+            FROM invoices_script
             WHERE is_cancelled = 0
               AND invoicing_method LIKE '%Department%'
               AND number NOT LIKE '%Blank%'
@@ -65,7 +66,10 @@ router.get("/update-payments-and-deductions-for-departments",
           `;
 
           const departments = await query(connection, departmentsQuery);
-          // const departments = [641901];
+          // const departments = [1063705,1063708,1063714,1063717,1063723,1063726,1063730,1063733,1063736,1063741,1063744,1063749,1063751,1063756,1063766,1065874,1065875,1065876,1065881,1093560
+          //     ,1510159
+          //     ,1531193
+          //     ,2134820];
 
           const vehiclecategories = ['V','K','B','C'];
 
@@ -85,7 +89,7 @@ router.get("/update-payments-and-deductions-for-departments",
               let bringForward = 0;
               const invoicesQuery = `
                 SELECT *
-                FROM invoices
+                FROM invoices_script
                 WHERE is_cancelled = 0
                   AND department_id = ?
                   AND number LIKE ?
@@ -106,6 +110,9 @@ router.get("/update-payments-and-deductions-for-departments",
                   bringForward = invoice.balance_as_at_end_date
                   continue; // Skip manually corrected payments
                 }
+                
+                const startDate = moment(invoice.start_date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+                const endDate = moment(invoice.end_date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
                 invoice.balance_as_at_start_date = bringForward;
                 const paymentsQuery = `
@@ -114,13 +121,14 @@ router.get("/update-payments-and-deductions-for-departments",
                     0
                   ) AS total
                   FROM receipt_invoices ri
-                  INNER JOIN invoices inv
+                  INNER JOIN invoices_script inv
                     ON inv.id = ri.invoice_id
                   INNER JOIN receipts r
                     ON r.id = ri.receipt_id
                   INNER JOIN payments p
                     ON p.id = r.payment_id
                   WHERE r.organization_id = ?
+                    AND r.is_cancelled = 0
                     AND p.is_cancelled = 0
                     AND p.date BETWEEN ? AND ?
                     AND inv.number LIKE ?
@@ -134,9 +142,10 @@ router.get("/update-payments-and-deductions-for-departments",
                     0
                   ) AS total
                   FROM bad_debts bd
-                  INNER JOIN invoices inv
+                  INNER JOIN invoices_script inv
                     ON inv.id = bd.invoice_id
                   WHERE bd.customer_code = ?
+                    AND bd.is_write_off = 1
                     AND bd.write_off_date BETWEEN ? AND ?
                     AND inv.number LIKE ?
                     AND inv.is_cancelled = 0
@@ -152,24 +161,21 @@ router.get("/update-payments-and-deductions-for-departments",
                     department,
                   ]),
 
-                  // query(connection, deductionsQuery, [
-                  //   invoice.customer_code,
-                  //   invoice.start_date,
-                  //   invoice.end_date,
-                  //   `${category}%`,
-                  //   department,
-                  // ]),
+                  query(connection, deductionsQuery, [
+                    invoice.customer_code,
+                    startDate,
+                    endDate,
+                    `${category}%`,
+                    department,
+                  ]),
                 ]);
 
                 let payments = Number(paymentRows[0]?.total || 0);
-                // let deductions = Number(deductionRows[0]?.total || 0);
+                let deductions = Number(deductionRows[0]?.total || 0);
 
                 payments = Math.round(payments * 100) / 100;
-                // deductions = Math.round(deductions * 100) / 100;
-                let deductions = 0;
-                
-                // payments = 100
-                // deductions = 20
+                deductions = Math.round(deductions * 100) / 100;
+
                 endBalance = invoice.balance_as_at_start_date + invoice.net_amount - payments - deductions;
                 endBalance = Math.round(endBalance * 100) / 100;
 
@@ -180,7 +186,7 @@ router.get("/update-payments-and-deductions-for-departments",
                 await query(
                   connection,
                   `
-                    UPDATE invoices
+                    UPDATE invoices_script
                     SET payments = ?,
                         deductions = ?,
                         balance_as_at_start_date = ?,
@@ -262,7 +268,7 @@ router.get("/update-payments-and-deductions-for-organizations",
         try {
           const organizationsQuery = `
             SELECT organization_id
-            FROM invoices
+            FROM invoices_script
             WHERE is_cancelled = 0
               AND invoicing_method = 'Organization'
               AND number NOT LIKE '%Blank%'
@@ -271,7 +277,7 @@ router.get("/update-payments-and-deductions-for-organizations",
           `;
 
           const organizations = await query(connection, organizationsQuery);
-          // const organizations = [497267];
+          // const organizations = [300991];
 
           const vehiclecategories = ['V','K','B','C'];
 
@@ -288,7 +294,7 @@ router.get("/update-payments-and-deductions-for-organizations",
               let bringForward = 0;
               const invoicesQuery = `
                 SELECT *
-                FROM invoices
+                FROM invoices_script
                 WHERE is_cancelled = 0
                   AND organization_id = ?
                   AND number LIKE ?
@@ -303,6 +309,9 @@ router.get("/update-payments-and-deductions-for-organizations",
               ]);
 
               for (const invoice of invoices) {
+                const startDate = moment(invoice.start_date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
+                const endDate = moment(invoice.end_date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
+
                 invoice.balance_as_at_start_date = bringForward;
                 const paymentsQuery = `
                   SELECT COALESCE(
@@ -310,13 +319,14 @@ router.get("/update-payments-and-deductions-for-organizations",
                     0
                   ) AS total
                   FROM receipt_invoices ri
-                  INNER JOIN invoices inv
+                  INNER JOIN invoices_script inv
                     ON inv.id = ri.invoice_id
                   INNER JOIN receipts r
                     ON r.id = ri.receipt_id
                   INNER JOIN payments p
                     ON p.id = r.payment_id
                   WHERE r.organization_id = ?
+                    AND r.is_cancelled = 0
                     AND p.is_cancelled = 0
                     AND p.date BETWEEN ? AND ?
                     AND inv.number LIKE ?
@@ -330,9 +340,10 @@ router.get("/update-payments-and-deductions-for-organizations",
                     0
                   ) AS total
                   FROM bad_debts bd
-                  INNER JOIN invoices inv
+                  INNER JOIN invoices_script inv
                     ON inv.id = bd.invoice_id
                   WHERE bd.customer_code = ?
+                    AND bd.is_write_off = 1
                     AND bd.write_off_date BETWEEN ? AND ?
                     AND inv.number LIKE ?
                     AND inv.is_cancelled = 0
@@ -349,8 +360,8 @@ router.get("/update-payments-and-deductions-for-organizations",
 
                   query(connection, deductionsQuery, [
                     invoice.customer_code,
-                    invoice.start_date,
-                    invoice.end_date,
+                    startDate,
+                    endDate,
                     `${category}%`
                   ]),
                 ]);
@@ -371,7 +382,7 @@ router.get("/update-payments-and-deductions-for-organizations",
                 await query(
                   connection,
                   `
-                    UPDATE invoices
+                    UPDATE invoices_script
                     SET payments = ?,
                         deductions = ?,
                         balance_as_at_start_date = ?,
