@@ -66,10 +66,7 @@ router.get("/update-payments-and-deductions-for-departments",
           `;
 
           const departments = await query(connection, departmentsQuery);
-          // const departments = [1063705,1063708,1063714,1063717,1063723,1063726,1063730,1063733,1063736,1063741,1063744,1063749,1063751,1063756,1063766,1065874,1065875,1065876,1065881,1093560
-          //     ,1510159
-          //     ,1531193
-          //     ,2134820];
+          // const departments = [1063705];
 
           const vehiclecategories = ['V','K','B','C'];
 
@@ -78,10 +75,6 @@ router.get("/update-payments-and-deductions-for-departments",
           for (const departmentRow of departments) {
             const department = departmentRow.department_id;
             // const department = departmentRow
-            
-            // if (department !== 29999) {
-            //   continue;
-            // }
               
             for (const category of vehiclecategories) {
               console.log(`================================================================== Updating department ${category} : `, department);
@@ -202,12 +195,6 @@ router.get("/update-payments-and-deductions-for-departments",
               }
             }
           }
-
-          // connection.end();
-          // return res.json({
-          //   success: 'trueeeeeeeeee',
-          //   updated: totalUpdated,
-          // });
 
           connection.commit(function (err) {
             if (err) {
@@ -398,12 +385,6 @@ router.get("/update-payments-and-deductions-for-organizations",
               }
             }
           }
-
-          // connection.end();
-          // return res.json({
-          //   success: 'trueeeeeeeeee',
-          //   updated: totalUpdated,
-          // });
 
           connection.commit(function (err) {
             if (err) {
