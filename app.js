@@ -8,10 +8,9 @@ import organizationsFindRouter from "./scripts/organizationsFind.js";
 import productionFindRouter from "./scripts/productionFindRoutes.js";
 import ScriptedFind from "./scripts/productionFindRoutes-2.js";
 import invoiceRoutes from "./scripts/invoiceRoutes.js";
-
-
 import shortVoucherRoutes from "./scripts/shortVoucher.js";
 import invoiceBalanceUpdate from "./scripts/prodInvoicesBalanceUpdateRoutes.js";
+import prodGenuineVoucherUpdate from "./scripts/prodGenuineVoucherUpdate.js";
 
 dotenv.config();
 const port = 3009;
@@ -29,6 +28,7 @@ app.use(cors({ origin: "*" }));
 // app.use("/invoice-api/test", invoiceRoutes);
 // app.use("/prod-booking/copy", shortVoucherRoutes);
 app.use("/prod-invoice/test", invoiceBalanceUpdate);
+app.use("/prod-voucher/test", prodGenuineVoucherUpdate);
 
 app.listen(port, () => {
   console.log(`server running on port ${port}`);

@@ -4,19 +4,19 @@ import moment from "moment";
 
 const router = express.Router();
 
-const testDb = {
-  host: "192.168.1.11",
-  user: "kangaroo",
-  password: "kan588",
-  database: "1_corporate_master_prod",
-};
-
 // const testDb = {
-//   host: "localhost",
-//   user: "admin",
-//   password: "viraj@2588",
-//   database: "c_corporate_prod_test",
+//   host: "192.168.1.11",
+//   user: "kangaroo",
+//   password: "kan588",
+//   database: "1_corporate_master_prod",
 // };
+
+const testDb = {
+  host: "localhost",
+  user: "admin",
+  password: "viraj@2588",
+  database: "c_corporate_prod_test",
+};
 
 // const productDB = {
 //   host: "192.168.1.10",
@@ -31,6 +31,17 @@ const testDb = {
 //   password: "viraj@2588",
 //   database: "corporate_master",
 // };
+
+const skipInvoiceList = []
+// const skipInvoiceList = [2927381]
+const dataList = [
+  { id: 2927381,
+    balance_as_at_start_date: 227349.1,
+    balance_as_at_end_date: 169993.49,
+    deductions: 0,
+    payments: 106028.48
+  }
+]
 
 router.get("/update-payments-and-deductions-for-departments",
   function (req, res) {
@@ -66,7 +77,7 @@ router.get("/update-payments-and-deductions-for-departments",
           `;
 
           const departments = await query(connection, departmentsQuery);
-          // const departments = [1063705];
+          // const departments = [641901];
 
           const vehiclecategories = ['V','K','B','C'];
 
@@ -86,7 +97,6 @@ router.get("/update-payments-and-deductions-for-departments",
                 WHERE is_cancelled = 0
                   AND department_id = ?
                   AND number LIKE ?
-                  AND number NOT LIKE '%Blank%'
                   AND invoicing_method LIKE '%Department%'
                 ORDER BY created_date ASC, id ASC
               `;
@@ -97,12 +107,30 @@ router.get("/update-payments-and-deductions-for-departments",
               ]);
 
               for (const invoice of invoices) {
-
-                const skipInvoiceList = [2927381]
-                if (skipInvoiceList.includes(invoice.id)) {
-                  bringForward = invoice.balance_as_at_end_date
-                  continue; // Skip manually corrected payments
-                }
+                // if (skipInvoiceList.includes(invoice.id)) {
+                //   const data = dataList.find(d => d.id === invoice.id);
+                //   await query(
+                //     connection,
+                //     `
+                //       UPDATE invoices_script
+                //       SET payments = ?,
+                //           deductions = ?,
+                //           balance_as_at_start_date = ?,
+                //           balance_as_at_end_date = ?
+                //       WHERE id = ?
+                //     `,
+                //     [
+                //       data.payments,
+                //       data.deductions,
+                //       data.balance_as_at_start_date,
+                //       data.balance_as_at_end_date,
+                //       invoice.id
+                //     ]
+                //   );
+                  
+                //   bringForward = data.balance_as_at_end_date
+                //   continue; // Skip manually corrected payments
+                // }
                 
                 const startDate = moment(invoice.start_date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
                 const endDate = moment(invoice.end_date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
@@ -123,7 +151,7 @@ router.get("/update-payments-and-deductions-for-departments",
                   WHERE r.organization_id = ?
                     AND r.is_cancelled = 0
                     AND p.is_cancelled = 0
-                    AND p.date BETWEEN ? AND ?
+                    AND r.date BETWEEN ? AND ?
                     AND inv.number LIKE ?
                     AND inv.is_cancelled = 0
                     AND inv.department_id = ?
@@ -148,8 +176,8 @@ router.get("/update-payments-and-deductions-for-departments",
                 const [paymentRows, deductionRows] = await Promise.all([
                   query(connection, paymentsQuery, [
                     invoice.organization_id,
-                    invoice.start_date,
-                    invoice.end_date,
+                    startDate,
+                    endDate,
                     `${category}%`,
                     department,
                   ]),
@@ -285,7 +313,6 @@ router.get("/update-payments-and-deductions-for-organizations",
                 WHERE is_cancelled = 0
                   AND organization_id = ?
                   AND number LIKE ?
-                  AND number NOT LIKE '%Blank%'
                   AND invoicing_method = 'Organization'
                 ORDER BY created_date ASC, id ASC
               `;
@@ -296,6 +323,31 @@ router.get("/update-payments-and-deductions-for-organizations",
               ]);
 
               for (const invoice of invoices) {
+                // if (skipInvoiceList.includes(invoice.id)) {
+                //   const data = dataList.find(d => d.id === invoice.id);
+                //   await query(
+                //     connection,
+                //     `
+                //       UPDATE invoices_script
+                //       SET payments = ?,
+                //           deductions = ?,
+                //           balance_as_at_start_date = ?,
+                //           balance_as_at_end_date = ?
+                //       WHERE id = ?
+                //     `,
+                //     [
+                //       data.payments,
+                //       data.deductions,
+                //       data.balance_as_at_start_date,
+                //       data.balance_as_at_end_date,
+                //       invoice.id
+                //     ]
+                //   );
+                  
+                //   bringForward = data.balance_as_at_end_date
+                //   continue; // Skip manually corrected payments
+                // }
+
                 const startDate = moment(invoice.start_date).startOf('day').format('YYYY-MM-DD HH:mm:ss');
                 const endDate = moment(invoice.end_date).endOf('day').format('YYYY-MM-DD HH:mm:ss');
 
@@ -315,7 +367,7 @@ router.get("/update-payments-and-deductions-for-organizations",
                   WHERE r.organization_id = ?
                     AND r.is_cancelled = 0
                     AND p.is_cancelled = 0
-                    AND p.date BETWEEN ? AND ?
+                    AND r.date BETWEEN ? AND ?
                     AND inv.number LIKE ?
                     AND inv.is_cancelled = 0
                     AND inv.department_id IS NULL
@@ -340,9 +392,9 @@ router.get("/update-payments-and-deductions-for-organizations",
                 const [paymentRows, deductionRows] = await Promise.all([
                   query(connection, paymentsQuery, [
                     invoice.organization_id,
-                    invoice.start_date,
-                    invoice.end_date,
-                    `${category}%`
+                    startDate,
+                    endDate,
+                    `${category}%`,
                   ]),
 
                   query(connection, deductionsQuery, [
